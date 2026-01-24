@@ -72,17 +72,18 @@ jobs:
 
 ### Optional inputs
 
-| Input                   | Description                                        | Example                               | Default           |
-| ----------------------- | -------------------------------------------------- | ------------------------------------- | ----------------- |
-| `allowed-conclusions`   | Comma-separated list of acceptable conclusions     | `success,skipped`                     | `success,skipped` |
-| `api-endpoint`          | Custom GitHub API endpoint (for GHE)               | `https://github.mycompany.com/api/v3` | -                 |
-| `check-name`            | Specific check name to wait for                    | `"Run tests"`                         | -                 |
-| `check-regexp`          | Filter checks using regex pattern                  | `"test-.*"`                           | -                 |
-| `ignore-checks`         | Comma-separated list of checks to ignore           | `optional-lint,coverage-report`       | -                 |
-| `repo-token`            | GitHub token for API access                        | `${{ secrets.GITHUB_TOKEN }}`         | -                 |
-| `running-workflow-name` | Name of current workflow (to exclude from waiting) | `"Deploy"`                            | -                 |
-| `verbose`               | Print detailed logs                                | `true`                                | `true`            |
-| `wait-interval`         | Seconds between API requests                       | `10`                                  | `10`              |
+| Input                   | Description                                                                                                               | Example                               | Default           |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- | ----------------- |
+| `allowed-conclusions`   | Comma-separated list of acceptable conclusions                                                                            | `success,skipped`                     | `success,skipped` |
+| `api-endpoint`          | Custom GitHub API endpoint (for GHE)                                                                                      | `https://github.mycompany.com/api/v3` | -                 |
+| `check-name`            | Specific check name to wait for                                                                                           | `"Run tests"`                         | -                 |
+| `check-regexp`          | Filter checks using regex pattern                                                                                         | `"test-.*"`                           | -                 |
+| `fail-on-no-checks`     | Fail the action if no checks match the filter (check-name or check-regexp). Set to false to succeed when no checks match. | `true`                                | `true`            |
+| `ignore-checks`         | Comma-separated list of checks to ignore                                                                                  | `optional-lint,coverage-report`       | -                 |
+| `repo-token`            | GitHub token for API access                                                                                               | `${{ secrets.GITHUB_TOKEN }}`         | -                 |
+| `running-workflow-name` | Name of current workflow (to exclude from waiting)                                                                        | `"Deploy"`                            | -                 |
+| `verbose`               | Print detailed logs                                                                                                       | `true`                                | `true`            |
+| `wait-interval`         | Seconds between API requests                                                                                              | `10`                                  | `10`              |
 
 ## Usage examples
 
@@ -148,6 +149,31 @@ jobs:
     repo-token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
+### Allow no matching checks
+
+By default, if you use `check-name` or `check-regexp` and no checks match the filter, the action will fail with the message "The requested check was never run against this ref, exiting...".
+
+If you want the action to succeed when no checks match the filter (useful for conditional workflows where certain checks only run on specific file changes), you can set `fail-on-no-checks` to `false`:
+
+```yaml
+name: Wait for optional checks
+on:
+  push:
+jobs:
+  wait-for-optional-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Wait on optional tests
+        uses: lewagon/wait-on-check-action@v1.4.1
+        with:
+          ref: ${{ github.sha }}
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          running-workflow-name: wait-for-optional-checks
+          check-regexp: optional-.*
+          fail-on-no-checks: false
+```
+
 ## Understanding check names
 
 The check name corresponds to `jobs.<job_id>.name` in your workflow:
@@ -183,11 +209,11 @@ curl -H "Authorization: token $GITHUB_TOKEN" \
   | jq '[.check_runs[].name]'
 ```
 
-## Reusable workflows
+### Reusable workflows
 
 When using this action in a reusable workflow, the check name includes both the caller and callee job names:
 
-``.github/workflows/caller.yml``
+`.github/workflows/caller.yml`
 
 ```yaml
 on: push
@@ -196,7 +222,7 @@ jobs:
     uses: ./.github/workflows/callee.yml
 ```
 
-``.github/workflows/callee.yml``
+`.github/workflows/callee.yml`
 
 ```yaml
 on: workflow_call
